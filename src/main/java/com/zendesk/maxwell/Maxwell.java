@@ -3,6 +3,8 @@ package com.zendesk.maxwell;
 import com.djdch.log4j.StaticShutdownCallbackRegistry;
 import com.github.shyiko.mysql.binlog.network.ServerException;
 import com.zendesk.maxwell.bootstrap.BootstrapController;
+import com.zendesk.maxwell.ha.JGroupsHA;
+import com.zendesk.maxwell.ha.ZookeeperHA;
 import com.zendesk.maxwell.producer.AbstractProducer;
 import com.zendesk.maxwell.recovery.Recovery;
 import com.zendesk.maxwell.recovery.RecoveryInfo;
@@ -331,8 +333,8 @@ public class Maxwell implements Runnable {
 
 			LOGGER.info("Starting Maxwell. maxMemory: " + Runtime.getRuntime().maxMemory() + " bufferMemoryUsage: " + config.bufferMemoryUsage);
 
-			if ( config.haMode ) {
-				new MaxwellHA(maxwell, config.jgroupsConf, config.raftMemberID, config.clientID).startHA();
+			if ( config.haEnabled ) {
+				setupHA(maxwell, config).startHA();
 			} else {
 				maxwell.start();
 			}
@@ -352,6 +354,17 @@ public class Maxwell implements Runnable {
 			e.printStackTrace();
 			LOGGER.error("Maxwell saw an exception and is exiting...", e);
 			System.exit(1);
+		}
+	}
+
+	private static MaxwellHA setupHA(Maxwell maxwell, MaxwellConfig config) {
+		switch (config.haMode) {
+			case "jgroups-raft":
+				return new JGroupsHA(maxwell, config.clientID, config.jgroupsConf, config.raftMemberID);
+			case "zookeeper":
+				return new ZookeeperHA(maxwell, config.clientID, config.zookeeperHosts);
+			default:
+				throw new RuntimeException("Unknown HA mode: " + config.haMode);
 		}
 	}
 }

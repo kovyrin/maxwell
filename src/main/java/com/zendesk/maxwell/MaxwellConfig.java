@@ -609,9 +609,20 @@ public class MaxwellConfig extends AbstractConfig {
 	public Scripting scripting;
 
 	/**
-	 * Enable high available support (via jgroups-raft)
+	 * Enable high available support (via jgroups-raft or Zookeeper)
 	 */
-	public boolean haMode;
+	public boolean haEnabled;
+
+	/**
+	 * Defines the mode of high availability support (jgroups-raft or zookeeper)
+	 */
+	public String haMode;
+
+	/**
+	 * Zookeeper connection string containing a comma separated list of host:port pairs,
+	 * each corresponding to a ZooKeeper server.
+	 */
+	public String zookeeperHosts;
 
 	/**
 	 * Path to raft.xml file that configures high availability support
@@ -741,11 +752,17 @@ public class MaxwellConfig extends AbstractConfig {
 				.withRequiredArg();
 		parser.separator();
 
-		parser.accepts( "ha", "enable high-availability mode via jgroups-raft" )
+		parser.accepts( "ha", "enable high-availability mode via jgroups-raft or Zookeeper" )
 				.withOptionalArg().ofType(Boolean.class);
+		parser.accepts( "ha_mode", "HA mode: jgroups-raft (default) or zookeeper" )
+				.withRequiredArg();
+
 		parser.accepts( "jgroups_config", "location of jgroups xml configuration file" )
 				.withRequiredArg();
 		parser.accepts( "raft_member_id", "raft memberID.  (may also be specified in raft.xml)" )
+				.withRequiredArg();
+
+		parser.accepts( "zookeeper_hosts", "Comma-separated list of Zookeeper hosts to use for HA mode. Default: localhost:2181" )
 				.withRequiredArg();
 
 		parser.separator();
@@ -1206,9 +1223,12 @@ public class MaxwellConfig extends AbstractConfig {
 
 		setupEncryptionOptions(options, properties);
 
-		this.haMode = fetchBooleanOption("ha", options, properties, false);
+		this.haEnabled = fetchBooleanOption("ha", options, properties, false);
+		this.haMode = fetchStringOption("ha_mode", options, properties, "jgroups-raft");
 		this.jgroupsConf = fetchStringOption("jgroups_config", options, properties, "raft.xml");
 		this.raftMemberID = fetchStringOption("raft_member_id", options, properties, null);
+		this.zookeeperHosts = fetchStringOption("zookeeper_hosts", options, properties, "localhost:2181");
+
 		this.replicationReconnectionRetries = fetchIntegerOption("replication_reconnection_retries", options, properties, 1);
 
 		this.binlogEventQueueSize = fetchIntegerOption("binlog_event_queue_size", options, properties, BinlogConnectorReplicator.BINLOG_QUEUE_SIZE);
